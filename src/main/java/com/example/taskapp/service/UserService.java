@@ -2,6 +2,7 @@ package com.example.taskapp.service;
 
 import com.example.taskapp.model.User;
 import com.example.taskapp.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
@@ -10,38 +11,34 @@ import java.util.Set;
 public class UserService {
 
     private final UserRepository repo;
+    private final PasswordEncoder encoder;
 
-    public UserService(UserRepository repo) {
+    public UserService(UserRepository repo, PasswordEncoder encoder) {
         this.repo = repo;
+        this.encoder = encoder;
     }
 
     public User register(String username, String email, String password) {
-        if (repo.existsByUsername(username)) {
+        if (repo.existsByUsername(username))
             throw new IllegalArgumentException("Username taken");
-        }
-        if (repo.existsByEmail(email)) {
+        if (repo.existsByEmail(email))
             throw new IllegalArgumentException("Email taken");
-        }
 
         User u = new User();
         u.setUsername(username);
         u.setEmail(email);
-
-        // ⚠️ TEMP: store password as plain text (ONLY FOR DEV)
-        u.setPassword(password);
-
+        u.setPassword(encoder.encode(password));
         u.setRoles(Set.of("ROLE_USER"));
         return repo.save(u);
     }
 
-    public User login(String username, String password) {
+    public User login(String username, String rawPassword) {
         User user = repo.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!user.getPassword().equals(password)) {
-            throw new IllegalArgumentException("Invalid password");
+        if (!encoder.matches(rawPassword, user.getPassword())) {
+            throw new RuntimeException("Invalid password");
         }
-
         return user;
     }
 }

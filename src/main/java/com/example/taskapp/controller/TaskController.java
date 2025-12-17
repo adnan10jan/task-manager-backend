@@ -6,7 +6,10 @@ import com.example.taskapp.model.User;
 import com.example.taskapp.repository.UserRepository;
 import com.example.taskapp.service.TaskService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.userdetails.UserDetails;
+
 
 import java.net.URI;
 import java.util.List;
@@ -25,13 +28,11 @@ public class TaskController {
 
     // ✅ GET TASKS
     @GetMapping
-    public ResponseEntity<?> list(@RequestParam String username) {
-        User user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        List<Task> tasks = taskService.listForUser(user);
-        return ResponseEntity.ok(tasks);
+    public ResponseEntity<?> list(@AuthenticationPrincipal UserDetails ud) {
+        User user = userRepo.findByUsername(ud.getUsername()).orElseThrow();
+        return ResponseEntity.ok(taskService.listForUser(user));
     }
+
 
     // ✅ CREATE TASK
     @PostMapping
