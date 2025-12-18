@@ -1,93 +1,55 @@
 package com.example.taskapp.controller;
 
-//import com.example.taskapp.dto.*;
-//import com.example.taskapp.model.User;
-//import com.example.taskapp.repository.UserRepository;
-////import com.example.taskapp.security_disabled.JwtUtil;
-//import com.example.taskapp.service.UserService;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.security.authentication.*;
-//import org.springframework.security.core.Authentication;
-//import org.springframework.web.bind.annotation.*;
-//import jakarta.validation.Valid;
-
-//@RestController
-//@RequestMapping("/api/auth")
-//public class AuthController {
-//    private final AuthenticationManager authManager;
-//    private final JwtUtil jwtUtil;
-//    private final UserService userService;
-//    private final UserRepository userRepository;
-//
-//    public AuthController(AuthenticationManager authManager, JwtUtil jwtUtil, UserService userService, UserRepository userRepository) {
-//        this.authManager = authManager;
-//        this.jwtUtil = jwtUtil;
-//        this.userService = userService;
-//        this.userRepository = userRepository;
-//    }
-//
-//    @PostMapping("/signup")
-//    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest req) {
-//        User u = userService.register(req.username(), req.email(), req.password());
-//        return ResponseEntity.ok().body("User registered");
-//    }
-//
-//    @PostMapping("/login")
-//    public ResponseEntity<?> login(@Valid @RequestBody com.example.taskapp.dto.AuthRequest req) {
-//        Authentication auth = authManager.authenticate(new UsernamePasswordAuthenticationToken(req.username(), req.password()));
-//        String token = jwtUtil.generateToken(req.username());
-//        return ResponseEntity.ok(new AuthResponse(token, req.username()));
-//    }
-//}
-
-
-import com.example.taskapp.dto.SignupRequest;
 import com.example.taskapp.dto.AuthRequest;
+import com.example.taskapp.dto.AuthResponse;
+import com.example.taskapp.dto.SignupRequest;
 import com.example.taskapp.model.User;
+import com.example.taskapp.security.JwtUtil;
 import com.example.taskapp.service.UserService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-
-import java.util.Map;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
     private final UserService userService;
 
-    public AuthController(UserService userService) {
+    public AuthController(
+            AuthenticationManager authenticationManager,
+            JwtUtil jwtUtil,
+            UserService userService
+    ) {
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
         this.userService = userService;
     }
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest req) {
-        try {
-            User u = userService.register(req.username(), req.email(), req.password());
-            return ResponseEntity.ok(Map.of("message", "User registered", "username", u.getUsername()));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal error"));
-        }
+        User user = userService.register(
+                req.username(),
+                req.email(),
+                req.password()
+        );
+        return ResponseEntity.ok("User registered successfully");
     }
 
-    // TEMPORARY LOGIN without JWT
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest req) {
-        try {
-            User u = userService.login(req.username(), req.password());
-            // temporary: return simple success message + username
-            return ResponseEntity.ok(Map.of("message", "Login successful", "username", u.getUsername()));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal error"));
-        }
+    public ResponseEntity<?> login(@RequestBody AuthRequest req) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        req.username(),
+                        req.password()
+                )
+        );
+
+        String token = jwtUtil.generateToken(req.username());
+        return ResponseEntity.ok(new AuthResponse(token, req.username()));
     }
 }
-

@@ -37,30 +37,22 @@ public class TaskController {
     // ✅ CREATE TASK
     @PostMapping
     public ResponseEntity<?> create(
-            @RequestParam String username,
-            @RequestBody TaskDto tDto
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails,
+            @RequestBody TaskDto dto
     ) {
-        User u = userRepo.findByUsername(username).orElseThrow();
+        User user = userRepo
+                .findByUsername(userDetails.getUsername())
+                .orElseThrow();
 
-        Task t = new Task();
-        t.setTitle(tDto.title());
-        t.setDescription(tDto.description());
-        t.setPriority(Task.Priority.valueOf(tDto.priority()));
-        t.setDueDate(tDto.dueDate());
+        Task task = new Task();
+        task.setTitle(dto.title());
+        task.setDescription(dto.description());
+        task.setPriority(Task.Priority.valueOf(dto.priority()));
 
-        Task saved = taskService.create(t, u);
-
-        TaskDto response = new TaskDto(
-                saved.getId(),
-                saved.getTitle(),
-                saved.getDescription(),
-                saved.getStatus().name(),
-                saved.getPriority().name(),
-                saved.getDueDate()
-        );
-
-        return ResponseEntity.ok(response);
+        Task saved = taskService.create(task, user);
+        return ResponseEntity.ok(saved);
     }
+
 
 
     // ✅ UPDATE TASK
