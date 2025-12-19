@@ -11,9 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.userdetails.UserDetails;
 
 
-import java.net.URI;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
@@ -58,36 +55,67 @@ public class TaskController {
     // ✅ UPDATE TASK
     @PutMapping("/{id}")
     public ResponseEntity<?> update(
+            @AuthenticationPrincipal UserDetails ud,
             @PathVariable Long id,
-            @RequestBody TaskDto dto
-    ) {
-        Task t = taskService.findById(id).orElseThrow();
+            @RequestBody TaskDto dto) {
+
+        // 🔎 TEMP DEBUG LOGS (ADD HERE)
+        System.out.println("Logged user: " + ud.getUsername());
+        ud.getAuthorities().forEach(a ->
+                System.out.println("ROLE => " + a.getAuthority())
+        );
+
+        Task t = taskService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        boolean isOwner = t.getOwner().getUsername().equals(ud.getUsername());
+        boolean isAdmin = ud.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isOwner && !isAdmin) {
+            return ResponseEntity.status(403).body("Forbidden");
+        }
 
         t.setTitle(dto.title());
         t.setDescription(dto.description());
         t.setStatus(Task.Status.valueOf(dto.status()));
         t.setPriority(Task.Priority.valueOf(dto.priority()));
-        t.setDueDate(dto.dueDate());
 
-        Task saved = taskService.update(t);
+        Task updated = taskService.update(t);
 
         TaskDto response = new TaskDto(
-                saved.getId(),
-                saved.getTitle(),
-                saved.getDescription(),
-                saved.getStatus().name(),
-                saved.getPriority().name(),
-                saved.getDueDate()
+                updated.getId(),
+                updated.getTitle(),
+                updated.getDescription(),
+                updated.getStatus().name(),
+                updated.getPriority().name(),
+                updated.getDueDate()
         );
 
         return ResponseEntity.ok(response);
+
     }
 
 
     // ✅ DELETE TASK
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable Long id) {
+
+        Task t = taskService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        boolean isOwner = t.getOwner().getUsername().equals(ud.getUsername());
+        boolean isAdmin = ud.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isOwner && !isAdmin) {
+            return ResponseEntity.status(403).body("Forbidden");
+        }
+
         taskService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
 }

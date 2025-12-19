@@ -34,27 +34,35 @@ package com.example.taskapp.security;
 
 import com.example.taskapp.model.User;
 import com.example.taskapp.repository.UserRepository;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
+
+import java.util.stream.Collectors;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
 
-    private final UserRepository repo;
+    private final UserRepository userRepo;
 
-    public UserDetailsServiceImpl(UserRepository repo) {
-        this.repo = repo;
+    public UserDetailsServiceImpl(UserRepository userRepo) {
+        this.userRepo = userRepo;
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) {
-        User user = repo.findByUsername(username)
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
+
+        User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities(user.getRoles().toArray(new String[0]))
-                .build();
+        return new org.springframework.security.core.userdetails.User(
+                user.getUsername(),
+                user.getPassword(),
+                user.getRoles().stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toSet())
+        );
     }
 }
+

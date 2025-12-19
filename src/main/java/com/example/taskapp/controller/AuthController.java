@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -42,14 +43,14 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest req) {
-        authenticationManager.authenticate(
+
+        Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        req.username(),
-                        req.password()
-                )
-        );
+                        req.username(), req.password()));
 
         String token = jwtUtil.generateToken(req.username());
+
         return ResponseEntity.ok(new AuthResponse(token, req.username()));
     }
+
 }
