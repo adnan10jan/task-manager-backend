@@ -8,5 +8,6 @@ public record TaskDto(
         String description,
         String status,
         String priority,
-        LocalDateTime dueDate
+        LocalDateTime dueDate,
+        String ownerUsername
 ) {}

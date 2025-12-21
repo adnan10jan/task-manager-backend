@@ -89,26 +89,44 @@ public class TaskController {
                 updated.getDescription(),
                 updated.getStatus().name(),
                 updated.getPriority().name(),
-                updated.getDueDate()
+                updated.getDueDate(),
+                updated.getOwner().getUsername()
         );
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                new TaskDto(
+                        t.getId(),
+                        t.getTitle(),
+                        t.getDescription(),
+                        t.getStatus().name(),
+                        t.getPriority().name(),
+                        t.getDueDate(),
+                        t.getOwner().getUsername()
+                )
+        );
 
     }
 
 
     // ✅ DELETE TASK
     @DeleteMapping("/{id}")
+
     public ResponseEntity<?> delete(
             @AuthenticationPrincipal UserDetails ud,
             @PathVariable Long id) {
+
+        System.out.println("==== DELETE DEBUG ====");
+        System.out.println("User: " + ud.getUsername());
+        ud.getAuthorities().forEach(a ->
+                System.out.println("AUTHORITY => " + a.getAuthority())
+        );
 
         Task t = taskService.findById(id)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
         boolean isOwner = t.getOwner().getUsername().equals(ud.getUsername());
         boolean isAdmin = ud.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                .anyMatch(a -> a.getAuthority().contains("ADMIN"));
 
         if (!isOwner && !isAdmin) {
             return ResponseEntity.status(403).body("Forbidden");
