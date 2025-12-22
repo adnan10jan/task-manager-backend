@@ -89,8 +89,7 @@ public class TaskController {
                 updated.getDescription(),
                 updated.getStatus().name(),
                 updated.getPriority().name(),
-                updated.getDueDate(),
-                updated.getOwner().getUsername()
+                updated.getDueDate()
         );
 
         return ResponseEntity.ok(
@@ -100,8 +99,7 @@ public class TaskController {
                         t.getDescription(),
                         t.getStatus().name(),
                         t.getPriority().name(),
-                        t.getDueDate(),
-                        t.getOwner().getUsername()
+                        t.getDueDate()
                 )
         );
 

@@ -4,7 +4,7 @@ import com.example.taskapp.model.User;
 import com.example.taskapp.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import com.example.taskapp.exception.ApiException;
 import java.util.Set;
 
 @Service
@@ -19,10 +19,13 @@ public class UserService {
     }
 
     public User register(String username, String email, String password) {
+
         if (repo.existsByUsername(username))
-            throw new IllegalArgumentException("Username taken");
+            throw new ApiException("Username already taken");
+
         if (repo.existsByEmail(email))
-            throw new IllegalArgumentException("Email taken");
+            throw new ApiException("Email already registered");
+
 
         User u = new User();
         u.setUsername(username);
