@@ -1,9 +1,6 @@
 package com.example.taskapp.controller;
 
-import com.example.taskapp.dto.AuthRequest;
-import com.example.taskapp.dto.AuthResponse;
-import com.example.taskapp.dto.SignupRequest;
-import com.example.taskapp.dto.RefreshRequest;
+import com.example.taskapp.dto.*;
 import com.example.taskapp.exception.ApiException;
 import com.example.taskapp.model.RefreshToken;
 import com.example.taskapp.model.User;
@@ -51,55 +48,74 @@ public class AuthController {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
+    // ✅ SIGNUP
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest req) {
+    public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest req) {
         userService.register(req.username(), req.email(), req.password());
-        return ResponseEntity.ok("User registered successfully");
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User registered successfully", null)
+        );
     }
 
+    // ✅ LOGIN
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest req) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest req) {
 
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        req.username(),
-                        req.password()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            req.username(),
+                            req.password()
+                    )
+            );
+        } catch (BadCredentialsException ex) {
+            throw new IllegalArgumentException("Invalid username or password");
+        }
 
-        User user = userRepository.findByUsername(req.username()).orElseThrow();
+        User user = userRepository.findByUsername(req.username())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         String accessToken = jwtUtil.generateToken(user.getUsername());
         String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
 
+        AuthResponse response =
+                new AuthResponse(accessToken, refreshToken, user.getUsername());
+
         return ResponseEntity.ok(
-                new AuthResponse(accessToken, refreshToken, user.getUsername())
+                new ApiResponse<>(true, "Login successful", response)
         );
     }
 
-
-
+    // ✅ REFRESH TOKEN
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody RefreshRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> refreshToken(
+            @RequestBody RefreshRequest request) {
 
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
                 .map(refreshTokenService::verifyExpiration)
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
 
         String newAccessToken =
                 jwtUtil.generateToken(refreshToken.getUser().getUsername());
 
-        return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Token refreshed",
+                        Map.of("accessToken", newAccessToken))
+        );
     }
 
+    // ✅ LOGOUT
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal UserDetails userDetails) {
 
         User user = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         refreshTokenService.deleteByUser(user);
 
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Logged out successfully", null)
+        );
     }
 }

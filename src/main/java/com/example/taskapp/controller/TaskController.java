@@ -1,5 +1,6 @@
 package com.example.taskapp.controller;
 
+import com.example.taskapp.dto.ApiResponse;
 import com.example.taskapp.dto.TaskDto;
 import com.example.taskapp.model.Task;
 import com.example.taskapp.model.User;
@@ -9,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.userdetails.UserDetails;
-
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -25,21 +26,37 @@ public class TaskController {
 
     // ✅ GET TASKS
     @GetMapping
-    public ResponseEntity<?> list(@AuthenticationPrincipal UserDetails ud) {
-        User user = userRepo.findByUsername(ud.getUsername()).orElseThrow();
-        return ResponseEntity.ok(taskService.listForUser(user));
-    }
+    public ResponseEntity<ApiResponse<List<TaskDto>>> list(
+            @AuthenticationPrincipal UserDetails ud) {
 
+        User user = userRepo.findByUsername(ud.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        List<TaskDto> tasks = taskService.listForUser(user)
+                .stream()
+                .map(t -> new TaskDto(
+                        t.getId(),
+                        t.getTitle(),
+                        t.getDescription(),
+                        t.getStatus().name(),
+                        t.getPriority().name(),
+                        t.getDueDate()
+                ))
+                .toList();
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Tasks fetched", tasks)
+        );
+    }
 
     // ✅ CREATE TASK
     @PostMapping
-    public ResponseEntity<?> create(
-            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails,
-            @RequestBody TaskDto dto
-    ) {
-        User user = userRepo
-                .findByUsername(userDetails.getUsername())
-                .orElseThrow();
+    public ResponseEntity<ApiResponse<TaskDto>> create(
+            @AuthenticationPrincipal UserDetails ud,
+            @RequestBody TaskDto dto) {
+
+        User user = userRepo.findByUsername(ud.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Task task = new Task();
         task.setTitle(dto.title());
@@ -47,33 +64,38 @@ public class TaskController {
         task.setPriority(Task.Priority.valueOf(dto.priority()));
 
         Task saved = taskService.create(task, user);
-        return ResponseEntity.ok(saved);
+
+        TaskDto response = new TaskDto(
+                saved.getId(),
+                saved.getTitle(),
+                saved.getDescription(),
+                saved.getStatus().name(),
+                saved.getPriority().name(),
+                saved.getDueDate()
+        );
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task created", response)
+        );
     }
-
-
 
     // ✅ UPDATE TASK
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(
+    public ResponseEntity<ApiResponse<TaskDto>> update(
             @AuthenticationPrincipal UserDetails ud,
             @PathVariable Long id,
             @RequestBody TaskDto dto) {
 
-        // 🔎 TEMP DEBUG LOGS (ADD HERE)
-        System.out.println("Logged user: " + ud.getUsername());
-        ud.getAuthorities().forEach(a ->
-                System.out.println("ROLE => " + a.getAuthority())
-        );
-
         Task t = taskService.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
         boolean isOwner = t.getOwner().getUsername().equals(ud.getUsername());
         boolean isAdmin = ud.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         if (!isOwner && !isAdmin) {
-            return ResponseEntity.status(403).body("Forbidden");
+            return ResponseEntity.status(403)
+                    .body(new ApiResponse<>(false, "Forbidden", null));
         }
 
         t.setTitle(dto.title());
@@ -93,45 +115,32 @@ public class TaskController {
         );
 
         return ResponseEntity.ok(
-                new TaskDto(
-                        t.getId(),
-                        t.getTitle(),
-                        t.getDescription(),
-                        t.getStatus().name(),
-                        t.getPriority().name(),
-                        t.getDueDate()
-                )
+                new ApiResponse<>(true, "Task updated", response)
         );
-
     }
-
 
     // ✅ DELETE TASK
     @DeleteMapping("/{id}")
-
-    public ResponseEntity<?> delete(
+    public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal UserDetails ud,
             @PathVariable Long id) {
 
-        System.out.println("==== DELETE DEBUG ====");
-        System.out.println("User: " + ud.getUsername());
-        ud.getAuthorities().forEach(a ->
-                System.out.println("AUTHORITY => " + a.getAuthority())
-        );
-
         Task t = taskService.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
         boolean isOwner = t.getOwner().getUsername().equals(ud.getUsername());
         boolean isAdmin = ud.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().contains("ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         if (!isOwner && !isAdmin) {
-            return ResponseEntity.status(403).body("Forbidden");
+            return ResponseEntity.status(403)
+                    .body(new ApiResponse<>(false, "Forbidden", null));
         }
 
         taskService.delete(id);
-        return ResponseEntity.noContent().build();
-    }
 
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task deleted", null)
+        );
+    }
 }
