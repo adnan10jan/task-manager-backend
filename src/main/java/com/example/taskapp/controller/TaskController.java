@@ -29,6 +29,10 @@ public class TaskController {
     public ResponseEntity<ApiResponse<List<TaskDto>>> list(
             @AuthenticationPrincipal UserDetails ud) {
 
+        // debug purpose
+        System.out.println("USER = " + ud.getUsername());
+        ud.getAuthorities().forEach(a -> System.out.println("ROLE = " + a.getAuthority()));
+
         User user = userRepo.findByUsername(ud.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 

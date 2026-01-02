@@ -61,11 +61,38 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .password(user.getPassword())
                 .authorities(
                         user.getRoles().stream()
-                                .map(SimpleGrantedAuthority::new)
+                                .map(SimpleGrantedAuthority::new) // ✅ FIX
                                 .toList()
                 )
                 .build();
+//                .withUsername(user.getUsername())
+//                .password(user.getPassword())
+//                .authorities(
+//                        user.getRoles()
+//                                .stream()
+//                                .map(role -> new SimpleGrantedAuthority(
+//                                        role.name().startsWith("ROLE_")
+//                                                ? role.name()
+//                                                : "ROLE_" + role.name()
+//                                ))
+//                                .collect(Collectors.toSet())
+//                )
+//                .build();
 
+//        return User.builder()
+//                .username(user.getUsername())
+//                .password(user.getPassword())
+//                .authorities(
+//                        user.getRoles()
+//                                .stream()
+//                                .map(role -> new SimpleGrantedAuthority(
+//                                        role.name().startsWith("ROLE_")
+//                                                ? role.name()
+//                                                : "ROLE_" + role.name()
+//                                ))
+//                                .collect(Collectors.toSet())
+//                )
+//                .build();
     }
 }
 

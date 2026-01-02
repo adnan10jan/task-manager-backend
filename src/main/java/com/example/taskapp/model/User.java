@@ -31,6 +31,17 @@ public class User {
     @Column(name = "role")
     private Set<String> roles = new HashSet<>();
 
+//    @ElementCollection(fetch = FetchType.EAGER)
+//    @CollectionTable(
+//            name = "user_roles",
+//            joinColumns = @JoinColumn(name = "user_id")
+//    )
+//    @Enumerated(EnumType.STRING)
+//    @Column(name = "role")
+//    private Set<Role> roles = new HashSet<>();
+
+
+
     public User() {}
 
     public User(String username, String email, String password, Set<String> roles) {
@@ -39,6 +50,14 @@ public class User {
         this.password = password;
         this.roles = roles == null ? new HashSet<>() : roles;
     }
+
+//    public User(String username, String email, String password, Set<Role> roles) {
+//        this.username = username;
+//        this.email = email;
+//        this.password = password;
+//        this.roles = roles == null ? new HashSet<>() : roles;
+//    }
+
 
     // Getters & Setters
     public Long getId() { return id; }
@@ -55,4 +74,13 @@ public class User {
 
     public Set<String> getRoles() { return roles; }
     public void setRoles(Set<String> roles) { this.roles = roles; }
+
+//    public Set<Role> getRoles() {
+//        return roles;
+//    }
+//
+//    public void setRoles(Set<Role> roles) {
+//        this.roles = roles;
+//    }
+
 }

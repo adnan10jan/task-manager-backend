@@ -1,4 +1,4 @@
-package com.example.taskapp.controller;
+ package com.example.taskapp.controller;
 
 import com.example.taskapp.dto.*;
 import com.example.taskapp.exception.ApiException;
@@ -19,6 +19,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -50,8 +52,11 @@ public class AuthController {
 
     // ✅ SIGNUP
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest req) {
+    public ResponseEntity<ApiResponse<Void>> signup(
+            @Valid @RequestBody SignupRequest req) {
+
         userService.register(req.username(), req.email(), req.password());
+
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "User registered successfully", null)
         );
@@ -59,7 +64,8 @@ public class AuthController {
 
     // ✅ LOGIN
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(
+            @Valid @RequestBody AuthRequest req) {
 
         try {
             authenticationManager.authenticate(
@@ -75,32 +81,64 @@ public class AuthController {
         User user = userRepository.findByUsername(req.username())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String accessToken = jwtUtil.generateToken(user.getUsername());
-        String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
+        List<String> roles = user.getRoles()
+                .stream()
+                .map(role -> role.toString())
+                .toList();
 
-        AuthResponse response =
-                new AuthResponse(accessToken, refreshToken, user.getUsername());
+
+//        String accessToken =
+//                jwtUtil.generateToken(user.getUsername(), roles);
+
+        String accessToken = jwtUtil.generateToken(
+                user.getUsername(),
+                new ArrayList<>(user.getRoles())
+        );
+
+
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user).getToken();
 
         return ResponseEntity.ok(
-                new ApiResponse<>(true, "Login successful", response)
+                new ApiResponse<>(
+                        true,
+                        "Login successful",
+                        Map.of(
+                                "accessToken", accessToken,
+                                "refreshToken", refreshToken,
+                                "username", user.getUsername(),
+                                "roles", roles // optional, UI convenience
+                        )
+                )
         );
     }
+
 
     // ✅ REFRESH TOKEN
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<Map<String, String>>> refreshToken(
             @RequestBody RefreshRequest request) {
 
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
+        RefreshToken token = refreshTokenRepository
+                .findByToken(request.refreshToken())
                 .map(refreshTokenService::verifyExpiration)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
 
-        String newAccessToken =
-                jwtUtil.generateToken(refreshToken.getUser().getUsername());
+        String newAccessToken = jwtUtil.generateToken(
+                token.getUser().getUsername(),
+                token.getUser().getRoles()
+                        .stream()
+                        .map(role -> role.toString())
+                        .toList()
+        );
+
 
         return ResponseEntity.ok(
-                new ApiResponse<>(true, "Token refreshed",
-                        Map.of("accessToken", newAccessToken))
+                new ApiResponse<>(
+                        true,
+                        "Token refreshed",
+                        Map.of("accessToken", newAccessToken)
+                )
         );
     }
 
@@ -109,7 +147,8 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        User user = userRepository.findByUsername(userDetails.getUsername())
+        User user = userRepository
+                .findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         refreshTokenService.deleteByUser(user);
