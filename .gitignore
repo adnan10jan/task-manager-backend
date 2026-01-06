@@ -29,5 +29,10 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### project DB###
+.env
+target/
+
+
 ### VS Code ###
 .vscode/

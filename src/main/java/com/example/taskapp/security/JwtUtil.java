@@ -20,6 +20,8 @@ public class JwtUtil {
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-ms}") long expirationMs) {
 
+        // temporary checking//
+        System.out.println("JWT SECRET LENGTH = " + secret.length());
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.expirationMs = expirationMs;
     }
